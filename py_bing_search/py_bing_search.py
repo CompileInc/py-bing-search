@@ -124,18 +124,12 @@ class PyBingNewsSearch(PyBingSearch):
             kwargs['$skip'] = len(results)
             more_results = self._search(query, format=format, **kwargs)
             for result in more_results:
-                try:
-                    date = result.date
-                except:
-                    date = result['Date']
+                date = result['Date']
                 current_date = dateutil.parser.parse(date).date()
                 if current_date < before_date:
                     results.append(result)
             prev_url = current_url
-            try:
-                current_url = more_results[-1].url
-            except:
-                current_url = more_results[-1]['Url']
+            current_url = more_results[-1]['Url']
             if prev_url == current_url:
                 break
 
@@ -181,3 +175,6 @@ class Result(object):
             self.date = result['Date']
 
         self.meta = self._Meta(result['__metadata'])
+
+    def __getitem__(self, key):
+        return getattr(self, key)
