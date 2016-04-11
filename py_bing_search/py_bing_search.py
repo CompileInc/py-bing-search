@@ -68,9 +68,13 @@ class PyBingNewsSearch(PyBingSearch):
         self.safe = safe
         self.latest_window = latest_window
 
-    def search(self, query, format='json', **kwargs):
+    def search(self, query, format='json', aggregrate=False, **kwargs):
         ''' Returns the result list'''
-        return self._search(query, format=format)
+        results, query_url = self._search(query, format=format, **kwargs)
+        if aggregrate:
+            return results
+        else:
+            results, query_url
 
     def search_all(self, query, format='json', limit=100, aggregrate=False, **kwargs):
         ''' Returns a single list containing up to 'limit' Result objects'''
