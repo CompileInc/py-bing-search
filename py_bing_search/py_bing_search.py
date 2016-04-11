@@ -72,23 +72,32 @@ class PyBingNewsSearch(PyBingSearch):
         ''' Returns the result list'''
         return self._search(query, format=format)
 
-    def search_all(self, query, format='json', limit=100, **kwargs):
+    def search_all(self, query, format='json', limit=100, aggregrate=False, **kwargs):
         ''' Returns a single list containing up to 'limit' Result objects'''
-        results = self._search(query, format, **kwargs)
-        if not results:
+        results = []
+        raw_results, query_url = self._search(query, format, **kwargs)
+        results.append(results, query_url)
+        if not raw_results:
             return results
-        current_url = results[-1].url
+        current_url = raw_results[-1]['url']
         prev_url = None
-        while len(results) <= limit:
-            max = limit - len(results)
-            kwargs['$skip'] = len(results)
-            more_results = self._search(query, format=format, **kwargs)
+        total_results = len(raw_results)
+        while total_results <= limit:
+            max = limit - total_results
+            kwargs['$skip'] = total_results
+            more_results, query_url = self._search(query, format=format, **kwargs)
             prev_url = current_url
-            current_url = more_results[-1].url
+            current_url = more_results[-1]['url']
             if prev_url == current_url:
                 break
-            results += more_results
-        return results
+            results.append((more_results, query_url))
+        if aggregrate:
+            aggregrate_results = []
+            for result, query_url in results:
+                aggregrate_results += result
+            return aggregrate_results
+        else:
+            return results
 
     def _search(self, query, format='json', **kwargs):
         url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), 'json')
@@ -107,9 +116,9 @@ class PyBingNewsSearch(PyBingSearch):
             results = json_results['d']['results']
         else:
             results = [Result(single_result_json) for single_result_json in json_results['d']['results']]
-        return results
+        return results, r.url
 
-    def search_latest(self, query, format='json', **kwargs):
+    def search_latest(self, query, format='json', aggregrate=False, **kwargs):
         before = kwargs.pop('before', None)
         if not before:
             before_date = datetime.date.today() - datetime.timedelta(days=self.latest_window)
@@ -121,18 +130,26 @@ class PyBingNewsSearch(PyBingSearch):
         current_url = None
         while True:
             kwargs['$skip'] = len(results)
-            more_results = self._search(query, format=format, **kwargs)
+            more_results, query_url = self._search(query, format=format, **kwargs)
+            selected_results = []
             for result in more_results:
                 date = result['Date']
                 current_date = dateutil.parser.parse(date).date()
                 if current_date < before_date:
-                    results.append(result)
+                    selected_results.append(result)
             prev_url = current_url
             current_url = more_results[-1]['Url']
             if prev_url == current_url:
                 break
+            results.append((selected_results, query_url))
 
-        return results
+        if aggregrate:
+            aggregrate_results = []
+            for result, query_url in results:
+                aggregrate_results += result
+            return aggregrate_results
+        else:
+            return results
 
     def get_query_url(self, query, **kwargs):
         url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), 'json')
