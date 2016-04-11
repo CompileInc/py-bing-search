@@ -155,12 +155,6 @@ class PyBingNewsSearch(PyBingSearch):
         else:
             return results
 
-    def get_query_url(self, query, **kwargs):
-        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), 'json')
-        r = Request('GET', url, auth=("", self.api_key), params=kwargs)
-        prep = r.prepare()
-        return prep.url
-
 
 class Result(object):
     '''
