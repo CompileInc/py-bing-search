@@ -148,7 +148,7 @@ class PyBingNewsSearch(PyBingSearch):
             for result in more_results:
                 date = result['Date']
                 current_date = dateutil.parser.parse(date).date()
-                if current_date < before_date and result['Url'] not in result_url_set():
+                if current_date < before_date and result['Url'] not in result_url_set:
                     result_url_set.add(result['Url'])
                     selected_results.append(result)
             prev_url = current_url
