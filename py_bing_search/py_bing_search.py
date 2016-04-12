@@ -76,22 +76,22 @@ class PyBingNewsSearch(PyBingSearch):
         if aggregrate:
             return results
         else:
-            results, query_url
+            return results, query_url
 
     def search_all(self, query, format='json', limit=100, aggregrate=True, **kwargs):
         ''' Returns a single list containing up to 'limit' Result objects'''
         result_url_set = set()
         results = []
         raw_results, query_url = self._search(query, format, **kwargs)
-        results.append(results, query_url)
+        results.append((raw_results, query_url))
         if not raw_results:
             return results
         current_url = raw_results[-1]['Url']
         prev_url = None
-        total_results = len(raw_results)
+        kwargs['$skip'] = 0
+        total_results = 0
         while total_results <= limit:
-            max = limit - total_results
-            kwargs['$skip'] = total_results
+            kwargs['$skip'] += 15
             more_results, query_url = self._search(query, format=format, **kwargs)
             prev_url = current_url
             current_url = more_results[-1]['Url']
@@ -102,6 +102,7 @@ class PyBingNewsSearch(PyBingSearch):
                 if result['Url'] not in result_url_set:
                     result_url_set.add(result['Url'])
                     selected_results.append(result)
+                    total_results += 1
             results.append((selected_results, query_url))
         if aggregrate:
             aggregrate_results = []
@@ -138,17 +139,17 @@ class PyBingNewsSearch(PyBingSearch):
         else:
             before_date = dateutil.parser.parse(before).date()
 
-        kwargs['NewsSortBy'] = "'Date'"
+        kwargs['$skip'] = 0
         results = []
         current_url = None
         while True:
-            kwargs['$skip'] = len(results)
+            kwargs['$skip'] += 15
             more_results, query_url = self._search(query, format=format, **kwargs)
             selected_results = []
             for result in more_results:
                 date = result['Date']
                 current_date = dateutil.parser.parse(date).date()
-                if current_date < before_date and result['Url'] not in result_url_set:
+                if current_date > before_date and result['Url'] not in result_url_set:
                     result_url_set.add(result['Url'])
                     selected_results.append(result)
             prev_url = current_url
