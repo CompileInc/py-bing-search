@@ -37,6 +37,8 @@ class PyBingSearch(object):
         '''
         Returns a list of result objects, with the url for the next page bing search url.
         '''
+        if isinstance(query, unicode):
+            query = query.encode('utf8')
         url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), limit, offset, format)
         r = requests.get(url, auth=("", self.api_key))
         try:
