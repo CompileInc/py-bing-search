@@ -76,7 +76,7 @@ class PyBingNewsSearch(PyBingSearch):
         else:
             results, query_url
 
-    def search_all(self, query, format='json', limit=100, aggregrate=False, **kwargs):
+    def search_all(self, query, format='json', limit=100, aggregrate=True, **kwargs):
         ''' Returns a single list containing up to 'limit' Result objects'''
         results = []
         raw_results, query_url = self._search(query, format, **kwargs)
@@ -122,7 +122,7 @@ class PyBingNewsSearch(PyBingSearch):
             results = [Result(single_result_json) for single_result_json in json_results['d']['results']]
         return results, r.url
 
-    def search_latest(self, query, format='json', aggregrate=False, **kwargs):
+    def search_latest(self, query, format='json', aggregrate=True, **kwargs):
         before = kwargs.pop('before', None)
         if not before:
             before_date = datetime.date.today() - datetime.timedelta(days=self.latest_window)
