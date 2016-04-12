@@ -86,7 +86,7 @@ class PyBingNewsSearch(PyBingSearch):
         results.append(results, query_url)
         if not raw_results:
             return results
-        current_url = raw_results[-1]['url']
+        current_url = raw_results[-1]['Url']
         prev_url = None
         total_results = len(raw_results)
         while total_results <= limit:
@@ -94,7 +94,7 @@ class PyBingNewsSearch(PyBingSearch):
             kwargs['$skip'] = total_results
             more_results, query_url = self._search(query, format=format, **kwargs)
             prev_url = current_url
-            current_url = more_results[-1]['url']
+            current_url = more_results[-1]['Url']
             if prev_url == current_url:
                 break
             selected_results = []
@@ -201,4 +201,4 @@ class Result(object):
         self.meta = self._Meta(result['__metadata'])
 
     def __getitem__(self, key):
-        return getattr(self, key)
+        return getattr(self, key.lower())
