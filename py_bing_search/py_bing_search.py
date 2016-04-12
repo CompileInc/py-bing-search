@@ -78,6 +78,7 @@ class PyBingNewsSearch(PyBingSearch):
 
     def search_all(self, query, format='json', limit=100, aggregrate=True, **kwargs):
         ''' Returns a single list containing up to 'limit' Result objects'''
+        result_url_list = []
         results = []
         raw_results, query_url = self._search(query, format, **kwargs)
         results.append(results, query_url)
@@ -94,7 +95,12 @@ class PyBingNewsSearch(PyBingSearch):
             current_url = more_results[-1]['url']
             if prev_url == current_url:
                 break
-            results.append((more_results, query_url))
+            selected_results = []
+            for result in more_results:
+                if result['Url'] not in result_url_list:
+                    result_url_list.append(object)
+                    selected_results.append(result)
+            results.append((selected_results, query_url))
         if aggregrate:
             aggregrate_results = []
             for result, query_url in results:
@@ -123,6 +129,7 @@ class PyBingNewsSearch(PyBingSearch):
         return results, r.url
 
     def search_latest(self, query, format='json', aggregrate=True, **kwargs):
+        result_url_list = []
         before = kwargs.pop('before', None)
         if not before:
             before_date = datetime.date.today() - datetime.timedelta(days=self.latest_window)
@@ -139,7 +146,8 @@ class PyBingNewsSearch(PyBingSearch):
             for result in more_results:
                 date = result['Date']
                 current_date = dateutil.parser.parse(date).date()
-                if current_date < before_date:
+                if current_date < before_date and result['Url'] not in result_url_list:
+                    result_url_list.append(result['Url'])
                     selected_results.append(result)
             prev_url = current_url
             current_url = more_results[-1]['Url']
