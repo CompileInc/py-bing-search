@@ -37,6 +37,8 @@ class PyBingSearch(object):
         '''
         Returns a list of result objects, with the url for the next page bing search url.
         '''
+        if isinstance(query, unicode):
+            query = query.encode('utf8')
         url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), limit, offset, format)
         r = requests.get(url, auth=("", self.api_key))
         try:
@@ -61,38 +63,56 @@ class PyBingSearch(object):
 
 class PyBingNewsSearch(PyBingSearch):
 
-    QUERY_URL = 'https://api.datamarket.azure.com/Bing/Search/v1/News?Query={}'
+    QUERY_URL = 'https://api.datamarket.azure.com/Bing/Search/v1/News?Query={}&$format={}'
 
     def __init__(self, api_key, safe=False, latest_window=7):
         self.api_key = api_key
         self.safe = safe
         self.latest_window = latest_window
 
-    def search(self, query, format='json', **kwargs):
+    def search(self, query, format='json', aggregrate=False, **kwargs):
         ''' Returns the result list'''
-        return self._search(query, format=format)
-
-    def search_all(self, query, format='json', limit=100, **kwargs):
-        ''' Returns a single list containing up to 'limit' Result objects'''
-        results = self._search(query, format, **kwargs)
-        if not results:
+        results, query_url = self._search(query, format=format, **kwargs)
+        if aggregrate:
             return results
-        current_url = results[-1].url
+        else:
+            results, query_url
+
+    def search_all(self, query, format='json', limit=100, aggregrate=True, **kwargs):
+        ''' Returns a single list containing up to 'limit' Result objects'''
+        result_url_set = set()
+        results = []
+        raw_results, query_url = self._search(query, format, **kwargs)
+        results.append(results, query_url)
+        if not raw_results:
+            return results
+        current_url = raw_results[-1]['Url']
         prev_url = None
-        while len(results) <= limit:
-            max = limit - len(results)
-            kwargs['$skip'] = len(results)
-            more_results = self._search(query, format=format, **kwargs)
+        total_results = len(raw_results)
+        while total_results <= limit:
+            max = limit - total_results
+            kwargs['$skip'] = total_results
+            more_results, query_url = self._search(query, format=format, **kwargs)
             prev_url = current_url
-            current_url = more_results[-1].url
+            current_url = more_results[-1]['Url']
             if prev_url == current_url:
                 break
-            results += more_results
-        return results
+            selected_results = []
+            for result in more_results:
+                if result['Url'] not in result_url_set:
+                    result_url_set.add(result['Url'])
+                    selected_results.append(result)
+            results.append((selected_results, query_url))
+        if aggregrate:
+            aggregrate_results = []
+            for result, query_url in results:
+                aggregrate_results += result
+            return aggregrate_results
+        else:
+            return results
 
     def _search(self, query, format='json', **kwargs):
-        kwargs['$format'] = format
-        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)))
+        url = self.QUERY_URL.format(urllib2.quote("'{}'".format(query)), 'json')
         r = requests.get(url, auth=("", self.api_key), params=kwargs)
 
         try:
@@ -104,9 +124,14 @@ class PyBingNewsSearch(PyBingSearch):
                 print "[ERROR] Request returned with code %s, error msg: %s. \nContinuing in 5 seconds." % (r.status_code, r.text)
                 time.sleep(5)
 
-        return [Result(single_result_json) for single_result_json in json_results['d']['results']]
+        if format == 'json':
+            results = json_results['d']['results']
+        else:
+            results = [Result(single_result_json) for single_result_json in json_results['d']['results']]
+        return results, r.url
 
-    def search_latest(self, query, format='json', **kwargs):
+    def search_latest(self, query, format='json', aggregrate=True, **kwargs):
+        result_url_set = set()
         before = kwargs.pop('before', None)
         if not before:
             before_date = datetime.date.today() - datetime.timedelta(days=self.latest_window)
@@ -115,18 +140,30 @@ class PyBingNewsSearch(PyBingSearch):
 
         kwargs['NewsSortBy'] = "'Date'"
         results = []
-        crawling = True
-        while crawling:
+        current_url = None
+        while True:
             kwargs['$skip'] = len(results)
-            more_results = self._search(query, format=format, **kwargs)
+            more_results, query_url = self._search(query, format=format, **kwargs)
+            selected_results = []
             for result in more_results:
-                current_date = dateutil.parser.parse(result.date).date()
-                if current_date < before_date:
-                    crawling = False
-                    break
-                results.append(result)
+                date = result['Date']
+                current_date = dateutil.parser.parse(date).date()
+                if current_date < before_date and result['Url'] not in result_url_set:
+                    result_url_set.add(result['Url'])
+                    selected_results.append(result)
+            prev_url = current_url
+            current_url = more_results[-1]['Url']
+            if prev_url == current_url:
+                break
+            results.append((selected_results, query_url))
 
-        return results
+        if aggregrate:
+            aggregrate_results = []
+            for result, query_url in results:
+                aggregrate_results += result
+            return aggregrate_results
+        else:
+            return results
 
 
 class Result(object):
@@ -162,3 +199,6 @@ class Result(object):
             self.date = result['Date']
 
         self.meta = self._Meta(result['__metadata'])
+
+    def __getitem__(self, key):
+        return getattr(self, key.lower())
