@@ -3,7 +3,7 @@ import requests
 import time
 import datetime
 import dateutil.parser
-from requests import Request
+
 
 class PyBingException(Exception):
     pass
